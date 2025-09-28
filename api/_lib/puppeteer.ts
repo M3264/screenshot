@@ -1,23 +1,42 @@
-import { launch, Page } from "puppeteer-core";
-import chrome from "chrome-aws-lambda";
-let _page: Page | null;
+// puppeteer.ts (or whatever filename)
 
-async function getPage() {
-  if (_page) return _page;
-  const options = {
+import chrome from "chrome-aws-lambda";
+import puppeteer, { Page } from "puppeteer-core";
+
+let _page: Page | null = null;
+
+async function getPage(): Promise<Page> {
+  if (_page) {
+    return _page;
+  }
+
+  const browser = await puppeteer.launch({
     args: chrome.args,
     executablePath: await chrome.executablePath,
     headless: chrome.headless,
-  };
-  const browser = await launch(options);
+  });
+
   _page = await browser.newPage();
   return _page;
 }
 
-export async function getScreenshot(url, width, height) {
+export async function getScreenshot(
+  url: string,
+  width?: number,
+  height?: number
+): Promise<Buffer> {
   const page = await getPage();
-  await page.goto(url);
-  await page.setViewport({ width: Number(width) || 1280, height: Number(height) || 720, deviceScaleFactor: 2 });
-  const file = await page.screenshot();
-  return file;
+
+  await page.goto(url, {
+    waitUntil: "networkidle2",
+  });
+
+  await page.setViewport({
+    width: width ?? 1280,
+    height: height ?? 720,
+    deviceScaleFactor: 2,
+  });
+
+  const buffer = await page.screenshot();
+  return buffer as Buffer;
 }
