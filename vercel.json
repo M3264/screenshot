@@ -1,5 +1,13 @@
 {
+  "functions": {
+    "api/_lib/puppeteer.ts": {
+      "maxDuration": 30
+    }
+  },
   "redirects": [
-    { "source": "/deploy", "destination": "https://vercel.com/new/git/external?repository-url=https%3A%2F%2Fgithub.com%2FRemiixInc%2Fscreenshot" }
+    { 
+      "source": "/deploy", 
+      "destination": "https://vercel.com/new/git/external?repository-url=https%3A%2F%2Fgithub.com%2FRemiixInc%2Fscreenshot" 
+    }
   ]
 }
