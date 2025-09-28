@@ -1,6 +1,5 @@
-// puppeteer.ts
-import chromium from '@sparticuz/chromium';
-import puppeteer, { Page, Browser } from 'puppeteer-core';
+// api/_lib/puppeteer.ts
+import { Browser, Page } from 'puppeteer-core';
 
 let _page: Page | null = null;
 let _browser: Browser | null = null;
@@ -10,31 +9,36 @@ async function getBrowser(): Promise<Browser> {
     return _browser;
   }
 
-  // For local development
-  if (process.env.NODE_ENV === 'development') {
-    _browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    });
-  } else {
-    // For production on Vercel
-    _browser = await puppeteer.launch({
+  const isVercel = !!process.env.VERCEL_ENV;
+  let puppeteer: any, launchOptions: any = {
+    headless: true,
+  };
+
+  if (isVercel) {
+    // Use chromium and puppeteer-core for Vercel
+    const chromium = (await import('@sparticuz/chromium')).default;
+    puppeteer = await import('puppeteer-core');
+    launchOptions = {
+      ...launchOptions,
       args: [
         ...chromium.args,
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
         '--disable-gpu',
-        '--single-process',
-        '--no-zygote',
-        '--disable-features=VizDisplayCompositor',
       ],
-      defaultViewport: chromium.defaultViewport,
       executablePath: await chromium.executablePath(),
-      headless: chromium.headless,
-    });
+    };
+  } else {
+    // Use full puppeteer for local development
+    puppeteer = await import('puppeteer');
+    launchOptions = {
+      ...launchOptions,
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    };
   }
 
+  _browser = await puppeteer.launch(launchOptions);
   return _browser;
 }
 
@@ -59,18 +63,39 @@ export async function getScreenshot(
   width?: number,
   height?: number
 ): Promise<Buffer> {
-  const page = await getPage();
+  let browser: Browser | null = null;
 
   try {
-    await page.goto(url, {
-      waitUntil: 'networkidle2',
-      timeout: 30000,
-    });
+    // Get a fresh browser instance for each screenshot to avoid issues
+    const isVercel = !!process.env.VERCEL_ENV;
+    let puppeteer: any, launchOptions: any = {
+      headless: true,
+    };
+
+    if (isVercel) {
+      const chromium = (await import('@sparticuz/chromium')).default;
+      puppeteer = await import('puppeteer-core');
+      launchOptions = {
+        ...launchOptions,
+        args: chromium.args,
+        executablePath: await chromium.executablePath(),
+      };
+    } else {
+      puppeteer = await import('puppeteer');
+    }
+
+    browser = await puppeteer.launch(launchOptions);
+    const page = await browser.newPage();
 
     await page.setViewport({
       width: width ?? 1280,
       height: height ?? 720,
       deviceScaleFactor: 2,
+    });
+
+    await page.goto(url, {
+      waitUntil: 'networkidle2',
+      timeout: 30000,
     });
 
     const buffer = await page.screenshot({
@@ -82,6 +107,10 @@ export async function getScreenshot(
   } catch (error) {
     console.error('Screenshot error:', error);
     throw error;
+  } finally {
+    if (browser) {
+      await browser.close();
+    }
   }
 }
 
