@@ -1,9 +1,4 @@
 {
-  "functions": {
-    "api/_lib/puppeteer.ts": {
-      "maxDuration": 30
-    }
-  },
   "redirects": [
     { 
       "source": "/deploy", 
